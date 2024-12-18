@@ -8,7 +8,8 @@ from services import (
     get_total_transactions,
     get_average_transaction_amount,
     get_top_transactions,
-    delete_all_transactions
+    delete_all_transactions,
+    send_statistics_update_task
 )
 from auth import verify_api_key
 
@@ -20,16 +21,20 @@ router = APIRouter(
 )
 
 @router.post("")
-async def create_transaction(transaction: TransactionIn, db: AsyncSession = Depends(get_session)):
+async def create_transaction(data: TransactionIn, db: AsyncSession = Depends(get_session)):
     """
-    Adds a new transaction to the database if it does not already exist
+    Adds a new transaction to the database and enqueues a task to update statistics
     """
-    transaction = await get_transaction_by_id(transaction.transaction_id, db)
+    transaction = await get_transaction_by_id(data.transaction_id, db)
     if transaction:
         raise HTTPException(status_code=400, detail="Transaction ID already exists")
     
-    await add_transaction(transaction.model_dump(exclude_unset=True), db)
-    return {"message": "Transaction added successfully"}
+    await add_transaction(data.model_dump(), db)
+    await send_statistics_update_task(data.model_dump())
+    
+    return {"message": "Transaction received", "task_id": data.transaction_id}
+
+    return {"message": "Transaction received", "task_id": task_id}
 
 @router.get("/statistics")
 async def fetch_statistics(db: AsyncSession = Depends(get_session)):

@@ -2,6 +2,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql import func, insert, delete
 from db.models import Transaction
+from config import get_settings
+import redis
+import json
+
+settings = get_settings()
+redis_client = redis.Redis.from_url(settings.REDIS_URL)
+
+import json
+from datetime import datetime
+from redis import Redis
+from config import get_settings
+
+settings = get_settings()
+redis_client = Redis.from_url(settings.REDIS_URL)
+
+async def send_statistics_update_task(transaction_data: dict):
+    """
+    Sends the transaction task to Redis for processing.
+    """
+    if "timestamp" in transaction_data and isinstance(transaction_data["timestamp"], datetime):
+        transaction_data["timestamp"] = transaction_data["timestamp"].isoformat()
+
+    redis_client.rpush("transaction_tasks", json.dumps(transaction_data))
+
 
 async def get_transaction_by_id(transaction_id: str, db: AsyncSession):
     """Fetch a transaction by its ID"""

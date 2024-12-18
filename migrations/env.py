@@ -1,34 +1,45 @@
 import asyncio
 from logging.config import fileConfig
-from sqlalchemy import pool
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from alembic import context
 from db.db_setup import Base
 from config import get_settings
 
+# Alembic Config object
 config = context.config
-
 fileConfig(config.config_file_name)
 
+# Load database URL from settings
 settings = get_settings()
 DATABASE_URL = settings.DATABASE_URL
 
+# Target metadata for migrations
 target_metadata = Base.metadata
 
 
-def run_migrations_online():
+def do_run_migrations(connection):
+    """
+    Runs migrations using the connection.
+    """
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_migrations_online():
     """
     Run migrations in 'online' mode for AsyncEngine.
     """
-    connectable = create_async_engine(DATABASE_URL, poolclass=pool.NullPool)
+    connectable = create_async_engine(DATABASE_URL, future=True)
 
-    async def do_migrations():
-        async with connectable.connect() as connection:
-            await connection.run_sync(context.configure, target_metadata=target_metadata)
-            await connection.run_sync(context.run_migrations)
-
-    asyncio.run(do_migrations())
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
 
 
-# Execute online migrations
-run_migrations_online()
+# Run migrations
+asyncio.run(run_migrations_online())
