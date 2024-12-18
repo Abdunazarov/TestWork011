@@ -1,18 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+import heapq
 from sqlalchemy.future import select
 from sqlalchemy.sql import func, insert, delete
 from db.models import Transaction
 from config import get_settings
-import redis
 import json
 
-settings = get_settings()
-redis_client = redis.Redis.from_url(settings.REDIS_URL)
 
-import json
 from datetime import datetime
 from redis import Redis
-from config import get_settings
 
 settings = get_settings()
 redis_client = Redis.from_url(settings.REDIS_URL)
@@ -35,6 +31,10 @@ async def get_transaction_by_id(transaction_id: str, db: AsyncSession):
 
 async def add_transaction(transaction_data: dict, db: AsyncSession):
     """Adds a new transaction to the database"""
+    
+    if isinstance(transaction_data.get("timestamp"), str):
+        transaction_data["timestamp"] = datetime.fromisoformat(transaction_data["timestamp"])
+
     query = insert(Transaction).values(**transaction_data)
     await db.execute(query)
 
@@ -51,11 +51,18 @@ async def get_average_transaction_amount(db: AsyncSession):
     return result.scalar()
 
 async def get_top_transactions(db: AsyncSession):
-    """Fetches the top 3 transactions by amount"""
-    query = select(Transaction).order_by(Transaction.amount.desc()).limit(3)
+    """Fetches the top 3 transactions using a min-heap for better performance with large data sets"""
+    query = select(Transaction).order_by(Transaction.amount.desc())
     result = await db.execute(query)
-    return result.scalars().all()
-
+    top_transactions = []
+    
+    async for transaction in result.scalars():
+        if len(top_transactions) < 3:
+            heapq.heappush(top_transactions, transaction)
+        else:
+            heapq.heappushpop(top_transactions, transaction)
+    
+    return top_transactions
 
 async def delete_all_transactions(db: AsyncSession):
     """Deletes all transactions from the database"""

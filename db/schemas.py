@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 class TransactionIn(BaseModel):
@@ -7,6 +7,12 @@ class TransactionIn(BaseModel):
     amount: float
     currency: str = Field(..., max_length=3)
     timestamp: datetime
+    
+    @field_validator('timestamp')
+    def parse_datetime(cls, v):
+        if isinstance(v, str):
+            return datetime.fromisoformat(v)
+        return v
 
 class TransactionOut(BaseModel):
     transaction_id: str
