@@ -1,12 +1,15 @@
-import redis
-import json
 import asyncio
-from db.db_setup import get_session
+import json
+
+import redis
+
 from config import get_settings
-from services import add_transaction, get_total_transactions, get_average_transaction_amount, get_top_transactions
+from db.db_setup import get_session
+from services import add_transaction, get_average_transaction_amount, get_top_transactions, get_total_transactions
 
 settings = get_settings()
 redis_client = redis.Redis.from_url(settings.REDIS_URL)
+
 
 async def process_transaction_task(transaction: dict):
     """
@@ -22,15 +25,16 @@ async def process_transaction_task(transaction: dict):
         average = await get_average_transaction_amount(db)
         top = await get_top_transactions(db)
 
-        print({
-            "total_transactions": total,
-            "average_transaction_amount": average,
-            "top_transactions": [
-                {"transaction_id": t.transaction_id, "amount": t.amount} for t in top
-            ]
-        })
+        print(
+            {
+                "total_transactions": total,
+                "average_transaction_amount": average,
+                "top_transactions": [{"transaction_id": t.transaction_id, "amount": t.amount} for t in top],
+            }
+        )
     finally:
-        await db.close() 
+        await db.close()
+
 
 async def process_transaction_tasks():
     """
@@ -43,6 +47,7 @@ async def process_transaction_tasks():
             print(f"Processing transaction: {transaction}")
             await process_transaction_task(transaction)
         await asyncio.sleep(1)
+
 
 if __name__ == "__main__":
     asyncio.run(process_transaction_tasks())

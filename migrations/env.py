@@ -1,9 +1,11 @@
 import asyncio
 from logging.config import fileConfig
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+
 from alembic import context
-from db.db_setup import Base
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from config import get_settings
+from db.db_setup import Base
 
 # Alembic Config object
 config = context.config
